@@ -3,7 +3,7 @@
 
 ## Run the client-only demo
 
-The client now includes a local demo mode that does not require a wallet or deployed smart contract. It pairs the player with an arena opponent and saves demo progress in the browser.
+The client includes a local demo mode that does not require a wallet or deployed smart contract. It pairs the player with an arena opponent and saves demo progress in the browser. Wallet connection is optional; connect an injected EVM wallet from the entry screen or in-game to associate your local player with its address. The game can switch the wallet to Avalanche Fuji Testnet, but battles and their upgrade-point rewards are local demo data, not on-chain transactions or tokens.
 
 ```bash
 npm install

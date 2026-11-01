@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "main": "./server.js",
   "scripts": {
-    "prestart": "node scripts/free-ports.js",
     "server": "nodemon server.js",
     "client": "npm start --prefix client",
     "start": "concurrently \"npm run server\" \"npm run client\"",
