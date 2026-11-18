@@ -7,7 +7,8 @@ import PlayerInfo from './PlayerInfo';
 import CustomInput from './CustomInput';
 import CustomButton from './CustomButton';
 import ActionButton from './ActionButton';
-import OnboardModal from './OnboardModal';
+import WalletButton from './WalletButton';
+import RewardModal from './RewardModal';
 
 export {
   Card,
@@ -19,5 +20,6 @@ export {
   CustomInput,
   CustomButton,
   ActionButton,
-  OnboardModal,
+  WalletButton,
+  RewardModal,
 };

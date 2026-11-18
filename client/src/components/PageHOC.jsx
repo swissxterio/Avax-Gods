@@ -5,6 +5,7 @@ import Alert from './Alert';
 import { useGlobalContext } from '../context';
 import { logo, heroImg } from '../assets';
 import styles from '../styles';
+import WalletButton from './WalletButton';
 
 const PageHOC = (Component, title, description) => () => {
   const { showAlert } = useGlobalContext();
@@ -15,9 +16,12 @@ const PageHOC = (Component, title, description) => () => {
       {showAlert?.status && <Alert type={showAlert.type} message={showAlert.message} />}
 
       <div className={styles.hocContentBox}>
-        <button type="button" aria-label="Go to home" className="w-fit" onClick={() => navigate('/home')}>
-          <img src={logo} alt="Avax Gods" className={styles.hocLogo} />
-        </button>
+        <header className="hoc-header">
+          <button type="button" aria-label="Go to home" className="w-fit" onClick={() => navigate('/home')}>
+            <img src={logo} alt="Avax Gods" className={styles.hocLogo} />
+          </button>
+          <WalletButton />
+        </header>
 
         <div className={styles.hocBodyWrapper}>
           <p className="hoc-eyebrow">Avax Gods · Local arena</p>

@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { heroImg, logo } from '../assets';
+import { WalletButton } from '../components';
 import { grantDemoAccess } from '../utils/demoAccess';
 
 const atomMotionSequence = [
@@ -15,8 +16,7 @@ const Login = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
+  const continueToArena = () => {
     grantDemoAccess();
     const destination = location.state?.from;
     const returnPath = destination
@@ -26,10 +26,6 @@ const Login = () => {
     navigate(returnPath, { replace: true });
   };
 
-  useEffect(() => {
-   
-  }, []);
-
   return (
     <main className="login-page">
       <section className="login-panel" aria-labelledby="login-heading">
@@ -38,21 +34,22 @@ const Login = () => {
         </div>
 
         <div className="login-content">
-          <p className="hoc-eyebrow">Avax Gods · Local arena</p>
+          <p className="hoc-eyebrow">Avax Gods · Fuji testnet</p>
           <h1 id="login-heading" className="login-title">Enter the arena.</h1>
           <p className="login-description">
-            Continue your adventure and challenge the Arena Guardian.
+            Connect your wallet to bring your account into the arena, or play the local demo.
           </p>
 
-          <form className="login-form" onSubmit={handleSubmit}>
-            <button className="arena-button login-submit" type="submit">
-              Enter the arena
+          <div className="login-form">
+            <WalletButton onConnected={continueToArena} large />
+            <button className="arena-button login-submit login-demo-button" type="button" onClick={continueToArena}>
+              Continue as guest
               <span aria-hidden="true">→</span>
             </button>
-          </form>
+          </div>
 
           <p id="demo-notice" className="login-notice">
-            Local demo access. No account or password required.
+            Wallet connection is optional. No seed phrase or private key is ever requested.
           </p>
         </div>
 

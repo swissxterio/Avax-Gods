@@ -1,9 +1,9 @@
 /* eslint-disable prefer-destructuring */
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import styles from '../styles';
-import { Card, CustomButton, GameInfo, PlayerInfo } from '../components';
+import { Card, CustomButton, GameInfo, PlayerInfo, RewardModal, WalletButton } from '../components';
 import { useGlobalContext } from '../context';
 import { player02 as player02Icon } from '../assets';
 import { getCharacterAbilities, isOffensiveAbility } from '../utils/abilities';
@@ -31,10 +31,19 @@ const Battle = () => {
     && isOffensiveAbility(selectedOpponentAbility);
   const isFighting = Boolean(battle?.pendingAction);
   const playerWon = battle?.winner === player1.playerAddress;
+  const [isRewardModalOpen, setIsRewardModalOpen] = useState(false);
+
+  const closeRewardModal = useCallback(() => setIsRewardModalOpen(false), []);
 
   useEffect(() => {
     if (!battle) navigate('/create-battle');
   }, [battle, navigate]);
+
+  useEffect(() => {
+    if (battle?.battleStatus !== 1 && playerWon) {
+      setIsRewardModalOpen(true);
+    }
+  }, [battle?.battleStatus, playerWon]);
 
   const handleMove = (ability) => {
     makeMove(ability.id);
@@ -64,6 +73,10 @@ const Battle = () => {
 
   return (
     <main className={`${styles.flexBetween} ${styles.gameContainer} battle-arena ${battleGround} relative`}>
+      <div className="battle-wallet-control">
+        <WalletButton />
+      </div>
+
       {showAlert?.status && (
         <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center px-4" role="status" aria-live="polite">
           <div className={`max-w-[min(90vw,38rem)] border border-white/40 bg-black/85 px-6 py-4 text-center font-rajdhani text-lg font-bold text-white shadow-2xl backdrop-blur-md ${showAlert.type === 'success' ? 'ring-2 ring-green-400/70' : showAlert.type === 'failure' ? 'ring-2 ring-red-400/70' : 'ring-2 ring-cyan-300/70'}`}>
@@ -197,44 +210,21 @@ const Battle = () => {
         </div>
       </section>
 
-      {battle.battleStatus !== 1 && playerWon && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4">
-          <section className="max-h-[90vh] w-full max-w-xl overflow-y-auto border border-yellow-200/50 bg-black/90 p-4 text-white shadow-2xl backdrop-blur-md sm:p-6">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="font-rajdhani text-xl font-bold">Victory rewards</h2>
-              <span className="font-rajdhani text-sm text-yellow-200">+3 upgrade points earned</span>
-            </div>
-            <p className="mb-3 mt-1 font-rajdhani text-sm text-white/80">
-              Available points: {player1.upgradePoints || 0}
-            </p>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { id: 'health', label: '+5 max HP', current: `${player1.maxHealth || 25}/100` },
-                { id: 'mana', label: '+3 max mana', current: `${player1.maxMana || 10}/40` },
-                { id: 'attack', label: '+1 attack', current: `+${player1.attackBonus || 0}/12` },
-              ].map((upgrade) => {
-                const capped = upgrade.id === 'health'
-                  ? player1.maxHealth >= 100
-                  : upgrade.id === 'mana' ? player1.maxMana >= 40 : player1.attackBonus >= 12;
-                const disabled = !player1.upgradePoints || capped;
-
-                return (
-                  <button
-                    key={upgrade.id}
-                    type="button"
-                    disabled={disabled}
-                    onClick={() => upgradePlayer(upgrade.id)}
-                    className="min-h-16 border border-white/25 bg-white/5 p-2 text-left font-rajdhani text-xs transition-colors enabled:hover:border-yellow-200 disabled:opacity-40 sm:text-sm"
-                  >
-                    <span className="block font-bold">{upgrade.label}</span>
-                    <span className="block text-white/65">{upgrade.current}</span>
-                  </button>
-                );
-              })}
-            </div>
-            <CustomButton title="Enter next arena" handleClick={handleNextArena} restStyles="mt-5" />
-          </section>
+      {battle.battleStatus !== 1 && playerWon && !isRewardModalOpen && (
+        <div className="fixed bottom-24 left-1/2 z-30 -translate-x-1/2">
+          <CustomButton
+            title="View victory rewards"
+            handleClick={() => setIsRewardModalOpen(true)}
+          />
         </div>
+      )}
+      {battle.battleStatus !== 1 && playerWon && isRewardModalOpen && (
+        <RewardModal
+          player={player1}
+          onUpgrade={upgradePlayer}
+          onNext={handleNextArena}
+          onClose={closeRewardModal}
+        />
       )}
 
       <GameInfo />

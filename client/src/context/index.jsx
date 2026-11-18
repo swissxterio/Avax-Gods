@@ -1,10 +1,15 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { characters } from '../assets';
 import { getCharacterAbilities, resolveAbilityExchange } from '../utils/abilities';
+import {
+  connectInjectedWallet,
+  parseWalletChainId,
+  readWalletAccounts,
+} from '../utils/Onboard';
 
 const GlobalContext = createContext();
 const STORAGE_KEY = 'avax-gods-demo-v1';
-const PLAYER_ADDRESS = '0x000000000000000000000000000000000000d001';
+const DEMO_PLAYER_ADDRESS = '0x000000000000000000000000000000000000d001';
 const OPPONENT_ADDRESS = '0x000000000000000000000000000000000000d002';
 
 const emptyDemoState = { player: null, battles: [], activeBattleId: null };
@@ -71,9 +76,85 @@ export const GlobalContextProvider = ({ children }) => {
   const [battleGround, setBattleGround] = useState('bg-astral');
   const [showAlert, setShowAlert] = useState({ status: false, type: 'info', message: '' });
   const [battleName, setBattleName] = useState('');
+  const [walletAddress, setWalletAddress] = useState(null);
+  const [walletChainId, setWalletChainId] = useState(null);
 
   const player1Ref = useRef();
   const player2Ref = useRef();
+
+  const syncWalletAccount = useCallback((account) => {
+    setWalletAddress(account || null);
+    if (!account) return;
+
+    setDemoState((current) => {
+      if (!current.player) return current;
+
+      const previousAddress = current.player.playerAddress;
+      const matchesPreviousAddress = (address) => (
+        address?.toLowerCase() === previousAddress?.toLowerCase()
+      );
+
+      return {
+        ...current,
+        player: { ...current.player, playerAddress: account },
+        battles: current.battles.map((battle) => ({
+          ...battle,
+          players: battle.players.map((address) => (
+            matchesPreviousAddress(address) ? account : address
+          )),
+          winner: matchesPreviousAddress(battle.winner) ? account : battle.winner,
+        })),
+      };
+    });
+  }, []);
+
+  const connectWallet = useCallback(async () => {
+    const { account, chainId } = await connectInjectedWallet();
+    syncWalletAccount(account);
+    setWalletChainId(chainId);
+    return account;
+  }, [syncWalletAccount]);
+
+  useEffect(() => {
+    let removeProviderListeners;
+    const attachProviderListeners = () => {
+      removeProviderListeners?.();
+      const provider = window.ethereum;
+      if (!provider) return;
+
+      const handleAccountsChanged = (accounts) => {
+        syncWalletAccount(accounts[0] || null);
+      };
+      const handleChainChanged = (chainId) => {
+        setWalletChainId(parseWalletChainId(chainId));
+      };
+
+      provider.on?.('accountsChanged', handleAccountsChanged);
+      provider.on?.('chainChanged', handleChainChanged);
+      setWalletChainId(parseWalletChainId(provider.chainId));
+      readWalletAccounts(provider)
+        .then((accounts) => syncWalletAccount(accounts[0] || null))
+        .catch((error) => {
+          setShowAlert({
+            status: true,
+            type: 'failure',
+            message: `Could not read wallet accounts: ${error.message}`,
+          });
+        });
+
+      removeProviderListeners = () => {
+        provider.removeListener?.('accountsChanged', handleAccountsChanged);
+        provider.removeListener?.('chainChanged', handleChainChanged);
+      };
+    };
+
+    attachProviderListeners();
+    window.addEventListener('ethereum#initialized', attachProviderListeners);
+    return () => {
+      window.removeEventListener('ethereum#initialized', attachProviderListeners);
+      removeProviderListeners?.();
+    };
+  }, [syncWalletAccount]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(demoState));
@@ -110,8 +191,13 @@ export const GlobalContextProvider = ({ children }) => {
     setDemoState((current) => ({
       ...current,
       player: current.player
-        ? { ...current.player, playerName: trimmedName, characterId }
-        : createPlayer(PLAYER_ADDRESS, trimmedName, characterId),
+        ? {
+          ...current.player,
+          playerAddress: walletAddress || current.player.playerAddress,
+          playerName: trimmedName,
+          characterId,
+        }
+        : createPlayer(walletAddress || DEMO_PLAYER_ADDRESS, trimmedName, characterId),
     }));
     return true;
   };
@@ -119,7 +205,10 @@ export const GlobalContextProvider = ({ children }) => {
   const createBattle = (name) => {
     if (!demoState.player) return null;
 
-    const arenaTier = 1 + demoState.battles.filter((battle) => battle.winner === PLAYER_ADDRESS).length;
+    const playerAddress = demoState.player.playerAddress || walletAddress || DEMO_PLAYER_ADDRESS;
+    const arenaTier = 1 + demoState.battles.filter((battle) => (
+      battle.winner?.toLowerCase() === playerAddress.toLowerCase()
+    )).length;
     const tierBonus = arenaTier - 1;
     const trimmedName = name?.trim() || `Arena ${arenaTier}`;
     const player = {
@@ -144,7 +233,7 @@ export const GlobalContextProvider = ({ children }) => {
       name: trimmedName,
       tier: arenaTier,
       battleStatus: 1,
-      players: [PLAYER_ADDRESS, OPPONENT_ADDRESS],
+      players: [playerAddress, OPPONENT_ADDRESS],
       round: 1,
       moves: [0, 0],
       winner: null,
@@ -233,8 +322,9 @@ export const GlobalContextProvider = ({ children }) => {
         playerAbility,
         opponentAbility,
       );
+      const playerAddress = demoState.player.playerAddress || walletAddress || DEMO_PLAYER_ADDRESS;
       const winner = exchange.winner === 'player'
-        ? PLAYER_ADDRESS
+        ? playerAddress
         : exchange.winner === 'opponent' ? OPPONENT_ADDRESS : exchange.winner;
       const result = exchange.winner
         ? exchange.winner === 'draw'
@@ -266,7 +356,7 @@ export const GlobalContextProvider = ({ children }) => {
       });
       setShowAlert({
         status: true,
-        type: winner === PLAYER_ADDRESS ? 'success' : winner ? 'failure' : 'info',
+        type: winner === (demoState.player.playerAddress || DEMO_PLAYER_ADDRESS) ? 'success' : winner ? 'failure' : 'info',
         message: result,
       });
     }, 900);
@@ -324,7 +414,10 @@ export const GlobalContextProvider = ({ children }) => {
         battleGround,
         setBattleGround,
         gameData,
-        walletAddress: PLAYER_ADDRESS,
+        walletAddress,
+        walletChainId,
+        connectWallet,
+        setWalletChainId,
         registerPlayer,
         createBattle,
         makeMove,

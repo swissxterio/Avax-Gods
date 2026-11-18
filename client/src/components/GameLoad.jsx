@@ -32,7 +32,7 @@ const GameLoad = () => {
           <div className={`${styles.flexCenter} flex-col`}>
             <img src={player01} className={styles.gameLoadPlayerImg} />
             <p className={styles.gameLoadPlayerText}>
-              {walletAddress.slice(0, 30)}
+              {walletAddress ? `${walletAddress.slice(0, 6)}…${walletAddress.slice(-4)}` : 'Guest player'}
             </p>
           </div>
 
